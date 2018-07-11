@@ -1,10 +1,10 @@
 import { Meteor } from 'meteor/meteor';
 import { Cards } from './index';
 import { ValidatedMethod } from 'meteor/mdg:validated-method';
-//import { SimpleSchema } from 'meteor/aldeed:simple-schema';
 import SimpleSchema from 'simpl-schema';
-import { createCustomer } from '/imports/server/stripe/index';
 import { Promise } from 'meteor/promise';
+import { Users } from '/imports/collections/users/index';
+import { createCustomer, createSubscription, createSource } from '/imports/server/stripe/index';
 
 export const addCardInDatabase = new ValidatedMethod({
   name: 'cards.AddCardInDatabase',
@@ -16,23 +16,12 @@ export const addCardInDatabase = new ValidatedMethod({
     brand: {type: String},
     country: {type: String},
     last4: {type: String},
+    tokenId: {type: String}
 }).validator(),
-run({cardId, name, exp_month, exp_year, brand, country, last4}){
+run({cardId, name, exp_month, exp_year, brand, country, last4, tokenId}){
     const data = {cardId, name, exp_month, exp_year, brand, country, last4};
-    console.log("Hi there!!!");
     Cards.insert(data);
-}
-});
-
-export const addCustomer = new ValidatedMethod({
-  name: 'cards.AddCustomer',
-  validate: new SimpleSchema({
-    email: {type: String},
-
-}).validator(),
-run({email}){
-    const data = {email};
-    const customer = Promise.await(createCustomer(data));
-    console.log(customer);
+    cusId = Users.find({}, {sort: {createdAt: -1} }).fetch()[0].cusId;
+    Promise.await(createSource(cusId,{source: tokenId}));
 }
 });

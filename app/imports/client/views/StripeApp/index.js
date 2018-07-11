@@ -3,6 +3,7 @@ import { Form, FormGroup, Label, Input, FormFeedback, FormText, Col, Button } fr
 import { Bert } from 'meteor/themeteorchef:bert';
 import { Meteor } from 'meteor/meteor';
 import { Cards } from '/imports/collections/cards/index';
+import { Users } from '/imports/collections/users/index';
 import { composeWithTracker } from 'react-komposer';
 import { Promise } from 'meteor/promise';
 
@@ -18,6 +19,7 @@ export default class StripeApp extends React.Component {
       cvc: '',
       remMe: false,
       makePayment: false,
+      addCard: false,
     };
     this.getPaymentData = this.getPaymentData.bind(this);
     this.setEmail = this.setEmail.bind(this);
@@ -26,7 +28,9 @@ export default class StripeApp extends React.Component {
     this.setYY = this.setYY.bind(this);
     this.setCVC = this.setCVC.bind(this);
     this.toggleRememberMe = this.toggleRememberMe.bind(this);
-    this.updatePaymentData = this.updatePaymentData.bind(this);
+    this.createCustomer = this.createCustomer.bind(this);
+    this.subscribeMonthlyPackage = this.subscribeMonthlyPackage.bind(this);
+    this.addCardModal = this.addCardModal.bind(this);
   }
 
 getPaymentData(event){
@@ -43,7 +47,7 @@ getPaymentData(event){
   console.log('Status from Stripe: ' + status);
   if(status === 200){
     console.log(token);
-    let data = { cardId: token.card.id, name: token.card.name, exp_month: String(token.card.exp_month), exp_year: String(token.card.exp_year), brand: String(token.card.brand), country: String(token.card.country), last4: String(token.card.last4) };
+    let data = { cardId: token.card.id, name: token.card.name, exp_month: String(token.card.exp_month), exp_year: String(token.card.exp_year), brand: String(token.card.brand), country: String(token.card.country), last4: String(token.card.last4), tokenId: String(token.id) };
 
     Bert.alert("Success", 'success');
     Meteor.call('cards.AddCardInDatabase' ,data, (error, response) => {
@@ -101,15 +105,8 @@ toggleRememberMe(event){
   });
 }
 
-updatePaymentData(){
-  this.setState({
-    makePayment: true,
-  });
-  console.log(this.state.email);
-  //const customer = Promise.await(createCustomer({ email: this.state.email}));
-  //console.log('CUSTOMER');
-  //console.log(customer);
-  Meteor.call('cards.AddCustomer', {email: this.state.email}, (error, response) => {
+createCustomer(){
+  Meteor.call('users.AddCustomer', {email: this.state.email}, (error, response) => {
     if(error){
       Bert.alert('Customer Addition Failed', 'danger');
     }
@@ -120,10 +117,36 @@ updatePaymentData(){
 
 }
 
+subscribeMonthlyPackage(){
+  let subObj = {};
+  subObj.plan = 'plan_DCOYNzhcobrnZC'; //planId of monthly50
+  Meteor.call('users.subscribeMonthly',subObj, (error, response) => {
+    if(error){
+      console.log('Subscription Failed');
+      Bert.alert('Subscription Failed', 'danger');
+    }
+    else{
+      console.log('Subscribed to Monthly Package');
+      Bert.alert('Subscribed to Monthly Package', 'success');
+    }
+  });
+}
+
+addCardModal(event){
+  this.setState({
+    addCard: !this.state.addCard,
+  });
+}
+
   render() {
     return(
       <div>
         <div className="checkout">
+        <Button color="primary" onClick={this.createCustomer}>Create a Customer</Button>
+        <br /><br />
+        <Button color="primary" onClick={this.addCardModal}>Add Card</Button><br />< br/>
+        <Button color="primary" onClick={this.subscribeMonthlyPackage}>Subscribe Monthly Package</Button><br />< br/>
+        { this.state.addCard ?
           <Form onSubmit={this.getPaymentData} method='POST'>
             <FormGroup row>
             <Label sm={2}>EMAIL: </Label>
@@ -159,8 +182,10 @@ updatePaymentData(){
             </FormGroup><br />
             <Button color="success">Submit</Button>{' '}
           </Form>
-          <br /><br />
-          <Button color="primary" onClick={this.updatePaymentData}>Make Payment</Button>
+
+         : null}
+
+
         </div>
 
     </div>
